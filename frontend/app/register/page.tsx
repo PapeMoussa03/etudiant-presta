@@ -66,11 +66,40 @@ export default function RegisterPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Vérification que les mots de passe correspondent
     if (formData.motDePasse !== formData.confirmerMotDePasse) {
-      alert("Les mots de passe ne correspondent pas");
+      alert("❌ Les mots de passe ne correspondent pas");
       return;
     }
-    console.log("Inscription:", formData);
+
+    // Vérification des champs obligatoires
+    if (!formData.nom || !formData.prenom || !formData.email || !formData.telephone) {
+      alert("❌ Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+
+    // Vérification de l'école
+    if (!formData.ecole) {
+      alert("❌ Veuillez sélectionner ou saisir votre école");
+      return;
+    }
+
+    // Vérification du niveau
+    if (!formData.niveau) {
+      alert("❌ Veuillez sélectionner ou saisir votre niveau");
+      return;
+    }
+
+    // Simuler la création de compte
+    alert("✅ Félicitations ! Votre compte a été créé avec succès !");
+    
+    // Redirection selon le rôle choisi
+    if (formData.role === "prestataire") {
+      window.location.href = "/dashboard/prestataire";
+    } else {
+      window.location.href = "/dashboard/client";
+    }
   };
 
   return (
