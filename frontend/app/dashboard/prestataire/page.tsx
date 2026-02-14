@@ -1,21 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
 
 export default function DashboardPrestataire() {
   const [activeTab, setActiveTab] = useState("apercu");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    missionsEnCours: 0,
+    missionsTerminees: 0,
+    revenuMois: "0 FCFA",
+    noteMoyenne: 0,
+    avis: 0
+  });
 
-  // Données fictives
-  const stats = {
-    missionsEnCours: 3,
-    missionsTerminees: 12,
-    revenuMois: "125 000 FCFA",
-    noteMoyenne: 4.8,
-    avis: 24
-  };
-
+  // Données fictives en attendant l'API
   const missionsEnCours = [
     { id: 1, client: "Fatou Diop", service: "Cours de Maths L1", date: "15 Fév 2026", montant: "15 000 FCFA", statut: "À venir" },
     { id: 2, client: "Moussa Sow", service: "Dépannage PC", date: "16 Fév 2026", montant: "10 000 FCFA", statut: "En cours" },
@@ -28,6 +29,59 @@ export default function DashboardPrestataire() {
     { id: 3, titre: "Dépannage informatique", prix: "10 000 FCFA", demandes: 12, statut: "Actif" },
   ];
 
+  useEffect(() => {
+    // Récupérer les données de l'utilisateur connecté
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          window.location.href = '/login';
+          return;
+        }
+
+        const response = await fetch('http://127.0.0.1:8000/api/users/me/', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          setUser(data);
+          // Simuler des stats basées sur l'utilisateur
+          setStats({
+            missionsEnCours: 3,
+            missionsTerminees: 12,
+            revenuMois: "125 000 FCFA",
+            noteMoyenne: 4.8,
+            avis: 24
+          });
+        } else {
+          // Token invalide
+          localStorage.removeItem('access_token');
+          window.location.href = '/login';
+        }
+      } catch (error) {
+        console.error("Erreur chargement utilisateur:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003366] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement de votre dashboard...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50">
       <Header />
@@ -39,9 +93,11 @@ export default function DashboardPrestataire() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Dashboard Prestataire
             </h1>
-            <p className="text-gray-600">
-              Bienvenue sur votre espace, Pape Moussa 👋
-            </p>
+            {user && (
+              <p className="text-gray-600">
+                Bienvenue sur votre espace, {user.first_name} {user.last_name} 👋
+              </p>
+            )}
           </div>
           <Link
             href="/services/nouveau"
@@ -75,6 +131,32 @@ export default function DashboardPrestataire() {
             </div>
           </div>
         </div>
+
+        {/* Informations personnelles */}
+        {user && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="w-8 h-8 bg-[#003366] rounded-full flex items-center justify-center text-white">
+                {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
+              </span>
+              Vos informations
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Email</p>
+                <p className="font-medium text-gray-900">{user.email}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Téléphone</p>
+                <p className="font-medium text-gray-900">{user.phone || "Non renseigné"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">École / Université</p>
+                <p className="font-medium text-gray-900">{user.school || "ESP"}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Navigation tabs */}
         <div className="bg-white rounded-xl shadow-lg mb-8">

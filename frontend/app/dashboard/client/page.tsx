@@ -1,20 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
 
 export default function DashboardClient() {
   const [activeTab, setActiveTab] = useState("demandes");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    demandesEnCours: 0,
+    missionsRealisees: 0,
+    depensesMois: "0 FCFA",
+    prestatairesFavoris: 0
+  });
 
-  // Données fictives
-  const stats = {
-    demandesEnCours: 2,
-    missionsRealisees: 8,
-    depensesMois: "45 000 FCFA",
-    prestatairesFavoris: 4
-  };
-
+  // Données fictives en attendant l'API
   const demandesEnCours = [
     { id: 1, service: "Cours de Maths L2", prestataire: "Amadou Diallo", date: "15 Fév 2026", montant: "15 000 FCFA", statut: "En attente" },
     { id: 2, service: "Développement site web", prestataire: "Awa Ndiaye", date: "17 Fév 2026", montant: "50 000 FCFA", statut: "Confirmé" },
@@ -30,6 +31,58 @@ export default function DashboardClient() {
     { id: 2, nom: "Awa Ndiaye", specialite: "Développement web", note: 4.8, missions: 8 },
   ];
 
+  useEffect(() => {
+    // Récupérer les données de l'utilisateur connecté
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          window.location.href = '/login';
+          return;
+        }
+
+        const response = await fetch('http://127.0.0.1:8000/api/users/me/', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          setUser(data);
+          // Simuler des stats
+          setStats({
+            demandesEnCours: 2,
+            missionsRealisees: 8,
+            depensesMois: "45 000 FCFA",
+            prestatairesFavoris: 4
+          });
+        } else {
+          // Token invalide
+          localStorage.removeItem('access_token');
+          window.location.href = '/login';
+        }
+      } catch (error) {
+        console.error("Erreur chargement utilisateur:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003366] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement de votre dashboard...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50">
       <Header />
@@ -41,9 +94,11 @@ export default function DashboardClient() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Dashboard Client
             </h1>
-            <p className="text-gray-600">
-              Bienvenue sur votre espace client 👋
-            </p>
+            {user && (
+              <p className="text-gray-600">
+                Bienvenue sur votre espace client, {user.first_name} {user.last_name} 👋
+              </p>
+            )}
           </div>
           <Link
             href="/services/recherche"
@@ -72,6 +127,32 @@ export default function DashboardClient() {
             <p className="text-3xl font-bold text-[#003366]">{stats.prestatairesFavoris}</p>
           </div>
         </div>
+
+        {/* Informations personnelles */}
+        {user && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="w-8 h-8 bg-[#FF6B35] rounded-full flex items-center justify-center text-white">
+                {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
+              </span>
+              Vos informations
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Email</p>
+                <p className="font-medium text-gray-900">{user.email}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Téléphone</p>
+                <p className="font-medium text-gray-900">{user.phone || "Non renseigné"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Membre depuis</p>
+                <p className="font-medium text-gray-900">Février 2026</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Navigation tabs */}
         <div className="bg-white rounded-xl shadow-lg mb-8">

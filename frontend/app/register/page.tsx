@@ -17,6 +17,9 @@ export default function RegisterPage() {
     niveau: "",
   });
 
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
   // États pour les champs "Autre"
   const [autreEcole, setAutreEcole] = useState("");
   const [showAutreEcole, setShowAutreEcole] = useState(false);
@@ -64,41 +67,124 @@ export default function RegisterPage() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("🔵 FORMULAIRE SOUMIS !");
+    console.log("📦 État actuel du formulaire:", formData);
+    
+    setLoading(true);
+    setErrorMessage("");
     
     // Vérification que les mots de passe correspondent
     if (formData.motDePasse !== formData.confirmerMotDePasse) {
-      alert("❌ Les mots de passe ne correspondent pas");
+      console.log("🔴 Erreur: mots de passe différents");
+      setErrorMessage("❌ Les mots de passe ne correspondent pas");
+      setLoading(false);
       return;
     }
 
     // Vérification des champs obligatoires
     if (!formData.nom || !formData.prenom || !formData.email || !formData.telephone) {
-      alert("❌ Veuillez remplir tous les champs obligatoires");
+      console.log("🔴 Erreur: champs obligatoires manquants");
+      setErrorMessage("❌ Veuillez remplir tous les champs obligatoires");
+      setLoading(false);
       return;
     }
 
     // Vérification de l'école
     if (!formData.ecole) {
-      alert("❌ Veuillez sélectionner ou saisir votre école");
+      console.log("🔴 Erreur: école manquante");
+      setErrorMessage("❌ Veuillez sélectionner ou saisir votre école");
+      setLoading(false);
       return;
     }
 
     // Vérification du niveau
     if (!formData.niveau) {
-      alert("❌ Veuillez sélectionner ou saisir votre niveau");
+      console.log("🔴 Erreur: niveau manquant");
+      setErrorMessage("❌ Veuillez sélectionner ou saisir votre niveau");
+      setLoading(false);
       return;
     }
 
-    // Simuler la création de compte
-    alert("✅ Félicitations ! Votre compte a été créé avec succès !");
-    
-    // Redirection selon le rôle choisi
-    if (formData.role === "prestataire") {
-      window.location.href = "/dashboard/prestataire";
-    } else {
-      window.location.href = "/dashboard/client";
+    // Préparation des données pour l'API
+    const apiData = {
+      email: formData.email,
+      password: formData.motDePasse,
+      password2: formData.confirmerMotDePasse,
+      first_name: formData.prenom,
+      last_name: formData.nom,
+      phone: formData.telephone,
+      role: formData.role,
+      school: formData.ecole,
+      level: formData.niveau,
+    };
+
+    console.log("📤 Données envoyées à l'API:", apiData);
+
+    try {
+      console.log("🟡 Envoi de la requête à Django...");
+      console.log("🌐 URL: http://127.0.0.1:8000/api/auth/register/");
+      
+      const response = await fetch('http://127.0.0.1:8000/api/auth/register/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData),
+      });
+
+      console.log("🟢 Réponse reçue !");
+      console.log("📊 Status:", response.status);
+      console.log("📊 Status text:", response.statusText);
+      
+      const data = await response.json();
+      console.log("📦 Données reçues de l'API:", data);
+
+      if (response.ok) {
+        console.log("✅ INSCRIPTION RÉUSSIE !");
+        console.log("👤 Utilisateur créé:", data.user);
+        
+        // Stocker les tokens
+        localStorage.setItem('access_token', data.tokens.access);
+        localStorage.setItem('refresh_token', data.tokens.refresh);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        alert(`✅ Félicitations ${data.user.first_name} ! Votre compte a été créé avec succès !`);
+        
+        // Redirection selon le rôle
+        if (data.user.role === "prestataire") {
+          console.log("➡️ Redirection vers dashboard prestataire");
+          window.location.href = "/dashboard/prestataire";
+        } else {
+          console.log("➡️ Redirection vers dashboard client");
+          window.location.href = "/dashboard/client";
+        }
+      } else {
+        console.log("🔴 ERREUR API - Status:", response.status);
+        console.log("🔴 Détails de l'erreur:", data);
+        
+        // Gérer les erreurs de validation Django
+        if (typeof data === 'object') {
+          const errors = [];
+          for (const key in data) {
+            if (Array.isArray(data[key])) {
+              errors.push(`${key}: ${data[key].join(', ')}`);
+            } else {
+              errors.push(`${key}: ${data[key]}`);
+            }
+          }
+          setErrorMessage(`❌ ${errors.join('\n')}`);
+        } else {
+          setErrorMessage(`❌ ${data.error || "Erreur lors de l'inscription"}`);
+        }
+      }
+    } catch (error) {
+      console.log("🔴 ERREUR CATASTROPHIQUE:");
+      console.log(error);
+      setErrorMessage(`❌ Erreur de connexion au serveur. Vérifie que Django est lancé sur http://127.0.0.1:8000 et que le serveur est accessible.`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,8 +192,8 @@ export default function RegisterPage() {
     <main className="min-h-screen bg-gray-50">
       <Header />
       
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-white rounded-xl shadow-lg p-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16">
+        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
           {/* En-tête */}
           <div className="text-center mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
@@ -118,6 +204,13 @@ export default function RegisterPage() {
             </p>
           </div>
 
+          {/* Message d'erreur */}
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 whitespace-pre-line">
+              {errorMessage}
+            </div>
+          )}
+
           {/* Formulaire */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Type de compte */}
@@ -125,8 +218,8 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-gray-700 mb-4">
                 Je souhaite : <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-col sm:flex-row gap-6">
-                <label className="flex items-center p-4 bg-white rounded-lg border-2 border-transparent has-[:checked]:border-[#003366] cursor-pointer flex-1">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <label className="flex items-center p-4 bg-white rounded-lg border-2 border-transparent has-[:checked]:border-[#003366] cursor-pointer flex-1 hover:bg-gray-50 transition">
                   <input
                     type="radio"
                     id="role"
@@ -141,7 +234,7 @@ export default function RegisterPage() {
                     <span className="block text-sm text-gray-500 font-normal">(prestataire)</span>
                   </span>
                 </label>
-                <label className="flex items-center p-4 bg-white rounded-lg border-2 border-transparent has-[:checked]:border-[#003366] cursor-pointer flex-1">
+                <label className="flex items-center p-4 bg-white rounded-lg border-2 border-transparent has-[:checked]:border-[#003366] cursor-pointer flex-1 hover:bg-gray-50 transition">
                   <input
                     type="radio"
                     id="role"
@@ -372,9 +465,17 @@ export default function RegisterPage() {
             {/* Bouton */}
             <button
               type="submit"
-              className="w-full bg-[#003366] text-white py-4 px-6 rounded-lg hover:bg-[#002244] transition-all duration-200 font-semibold text-lg shadow-md hover:shadow-lg"
+              disabled={loading}
+              className="w-full bg-[#003366] text-white py-4 px-6 rounded-lg hover:bg-[#002244] transition-all duration-200 font-semibold text-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Créer mon compte
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Création en cours...
+                </>
+              ) : (
+                "Créer mon compte"
+              )}
             </button>
           </form>
 
